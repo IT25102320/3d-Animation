@@ -1,6 +1,8 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Video, Activity, Box, Settings, Play } from 'lucide-react'
+import { VideoFeed } from './components/VideoFeed'
+import { Scene3D } from './components/Scene3D'
 
 function App() {
   return (
@@ -31,12 +33,12 @@ function App() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-400">Tracking</span>
-                <div className="w-12 h-6 bg-gray-700 rounded-full relative cursor-pointer shadow-inner">
-                  <div className="w-4 h-4 bg-gray-400 rounded-full absolute top-1 left-1"></div>
+                <div className="w-12 h-6 bg-blue-600 rounded-full relative cursor-pointer shadow-inner">
+                  <div className="w-4 h-4 bg-white rounded-full absolute top-1 right-1"></div>
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Auto-Rigging</span>
+                <span className="text-sm text-gray-400">Auto-Rigging Server</span>
                 <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded-md border border-green-500/30">Active</span>
               </div>
             </div>
@@ -65,43 +67,32 @@ function App() {
 
         {/* Viewports */}
         <div className="flex-1 p-6 flex gap-6">
-          {/* Video / Webcam Feed Placeholder */}
+          {/* Video / Webcam Feed Component */}
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
             className="flex-1 bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden relative shadow-[inset_0_0_50px_rgba(0,0,0,0.5)] group"
           >
-            <div className="absolute top-4 left-4 flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-widest z-10">
+            <div className="absolute top-4 left-4 flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-widest z-10 bg-gray-900/60 px-2 py-1 rounded backdrop-blur-sm">
               <Video className="w-4 h-4" /> Input Feed
             </div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-32 h-32 border-4 border-gray-800 rounded-full animate-pulse flex items-center justify-center">
-                 <Video className="w-10 h-10 text-gray-700" />
-              </div>
-            </div>
+
+            <VideoFeed />
           </motion.div>
 
-          {/* 3D Canvas Placeholder */}
+          {/* 3D Canvas Component */}
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
             className="flex-[1.5] bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden relative shadow-[inset_0_0_50px_rgba(0,0,0,0.5)] group"
           >
-            <div className="absolute top-4 left-4 flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-widest z-10">
+            <div className="absolute top-4 left-4 flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-widest z-10 bg-gray-900/60 px-2 py-1 rounded backdrop-blur-sm">
               <Box className="w-4 h-4" /> 3D Viewport
             </div>
 
-            {/* Faux Grid Background for 3D feel */}
-            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at center, #1f2937 1px, transparent 1px)', backgroundSize: '40px 40px', opacity: 0.3 }}></div>
-
-            <div className="absolute inset-0 flex items-center justify-center">
-               <div className="flex flex-col items-center gap-4">
-                  <Box className="w-16 h-16 text-gray-700 animate-bounce" />
-                  <span className="text-gray-600 font-medium tracking-wide">React Three Fiber Canvas Ready</span>
-               </div>
-            </div>
+            <Scene3D />
           </motion.div>
         </div>
       </main>
