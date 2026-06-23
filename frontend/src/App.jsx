@@ -1,10 +1,50 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Video, Activity, Box, Settings, Play } from 'lucide-react'
+import { Video, Activity, Box, Settings, Play, Upload } from 'lucide-react'
 import { VideoFeed } from './components/VideoFeed'
 import { Scene3D } from './components/Scene3D'
 
 function App() {
+  const [poseData, setPoseData] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+  const [modelStatus, setModelStatus] = useState("Default");
+
+  const handleVideoUpload = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const url = URL.createObjectURL(file);
+      setVideoFile(url);
+    }
+  };
+
+  const handleModelUpload = async (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setModelStatus("Processing...");
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setModelStatus(data.fallback ? "Fallback Rigged" : "Rigged Successfully");
+          // In a real scenario we'd load the returned data.rigged_model URL into Scene3D here.
+        } else {
+          setModelStatus("Error");
+        }
+      } catch (err) {
+        console.error("Backend unreachable", err);
+        setModelStatus("Backend Offline");
+      }
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-900 text-white overflow-hidden font-sans">
       {/* Sidebar / Controls */}
@@ -20,6 +60,38 @@ function App() {
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar">
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gray-800/50 p-5 rounded-xl border border-gray-700/50 backdrop-blur-sm"
+          >
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">
+              <Upload className="w-4 h-4" /> Inputs
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-2">Upload Video Source</label>
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoUpload}
+                  className="w-full text-xs text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500"
+                />
+              </div>
+              <div className="pt-2 border-t border-gray-700">
+                <label className="block text-xs text-gray-400 mb-2">Upload 3D Model (.glb, .obj)</label>
+                <input
+                  type="file"
+                  accept=".glb,.gltf,.obj,.fbx"
+                  onChange={handleModelUpload}
+                  className="w-full text-xs text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-500"
+                />
+              </div>
+            </div>
+          </motion.div>
+
           {/* Controls Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -32,14 +104,14 @@ function App() {
             </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Tracking</span>
-                <div className="w-12 h-6 bg-blue-600 rounded-full relative cursor-pointer shadow-inner">
-                  <div className="w-4 h-4 bg-white rounded-full absolute top-1 right-1"></div>
-                </div>
+                <span className="text-sm text-gray-400">Tracking Engine</span>
+                <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded-md border border-green-500/30">Active</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-400">Auto-Rigging Server</span>
-                <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded-md border border-green-500/30">Active</span>
+                <span className="text-sm text-gray-400">Model Status</span>
+                <span className={`text-xs px-2 py-1 rounded-md border ${modelStatus.includes('Error') ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                  {modelStatus}
+                </span>
               </div>
             </div>
           </motion.div>
@@ -78,7 +150,7 @@ function App() {
               <Video className="w-4 h-4" /> Input Feed
             </div>
 
-            <VideoFeed />
+            <VideoFeed videoFile={videoFile} onPoseUpdate={setPoseData} />
           </motion.div>
 
           {/* 3D Canvas Component */}
@@ -92,7 +164,7 @@ function App() {
               <Box className="w-4 h-4" /> 3D Viewport
             </div>
 
-            <Scene3D />
+            <Scene3D poseData={poseData} />
           </motion.div>
         </div>
       </main>

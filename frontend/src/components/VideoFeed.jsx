@@ -4,23 +4,26 @@ import * as MP from '@mediapipe/camera_utils';
 
 const Camera = MP.Camera || MP.default?.Camera || window.Camera;
 
-export function VideoFeed() {
+export function VideoFeed({ videoFile, onPoseUpdate }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const workerRef = useRef(null);
+  const cameraRef = useRef(null);
+  const animationFrameId = useRef(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Initialize Worker
     workerRef.current = new Worker(new URL('../workers/poseWorker.js', import.meta.url), { type: 'module' });
 
     workerRef.current.onmessage = (e) => {
       const { type, payload } = e.data;
       if (type === 'initialized') {
         setIsReady(true);
-        startCamera();
       } else if (type === 'results') {
         drawResults(payload);
+        if (onPoseUpdate) {
+          onPoseUpdate(payload);
+        }
       }
     };
 
@@ -28,26 +31,62 @@ export function VideoFeed() {
 
     return () => {
       workerRef.current?.terminate();
+      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
     };
   }, []);
 
+  useEffect(() => {
+    if (!isReady) return;
+
+    if (videoFile) {
+        // Stop webcam if running
+        if (cameraRef.current) {
+            cameraRef.current.stop();
+            cameraRef.current = null;
+        }
+
+        const video = videoRef.current;
+        video.src = videoFile;
+        video.crossOrigin = "anonymous";
+        video.loop = true;
+        video.muted = true;
+
+        video.onloadeddata = () => {
+            video.play();
+            processVideoFrame();
+        };
+    } else {
+        startCamera();
+    }
+  }, [videoFile, isReady]);
+
+  const processVideoFrame = async () => {
+      if (videoRef.current && !videoRef.current.paused && !videoRef.current.ended) {
+          try {
+              const imageBitmap = await createImageBitmap(videoRef.current);
+              workerRef.current.postMessage({ type: 'process', payload: imageBitmap }, [imageBitmap]);
+          } catch(e) {
+              // ignore bitmap errors during fast frames
+          }
+          animationFrameId.current = requestAnimationFrame(processVideoFrame);
+      }
+  };
+
   const startCamera = () => {
-    if (videoRef.current && isReady && Camera) {
-      const camera = new Camera(videoRef.current, {
+    if (videoRef.current && isReady && Camera && !videoFile) {
+      cameraRef.current = new Camera(videoRef.current, {
         onFrame: async () => {
           if (videoRef.current) {
              try {
                 const imageBitmap = await createImageBitmap(videoRef.current);
                 workerRef.current.postMessage({ type: 'process', payload: imageBitmap }, [imageBitmap]);
-             } catch(e) {
-                 console.log(e);
-             }
+             } catch(e) { }
           }
         },
         width: 640,
         height: 480
       });
-      camera.start();
+      cameraRef.current.start();
     }
   };
 
@@ -85,7 +124,7 @@ export function VideoFeed() {
   };
 
   return (
-    <div className="absolute inset-0 w-full h-full">
+    <div className="absolute inset-0 w-full h-full flex items-center justify-center">
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover hidden"

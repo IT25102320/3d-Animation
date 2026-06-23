@@ -58,3 +58,31 @@ mocap-app/
 *   **Phase 4: The Auto-Rigging Pipeline**
     *   Implement Python FastAPI backend.
     *   Create auto-rigging logic for unrigged 3D models to ensure the Zero-Error policy.
+
+## Running the Application Locally
+
+To test out the Real-Time MoCap Engine natively on your desktop, you will need to start both the Python backend and the Tauri frontend app.
+
+### 1. Start the Zero-Error Backend (FastAPI)
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+The backend API will run on `http://127.0.0.1:8000`.
+
+### 2. Start the Frontend Desktop Application (Tauri + Vite)
+
+In a new terminal window:
+
+```bash
+cd frontend
+npm install
+npm run tauri dev
+```
+
+This will automatically start the Vite dev server and launch the native desktop application.
