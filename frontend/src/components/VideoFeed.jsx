@@ -1,15 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Video } from 'lucide-react';
-import * as MP from '@mediapipe/camera_utils';
-
-const Camera = MP.Camera || MP.default?.Camera || window.Camera;
 
 export function VideoFeed({ videoFile, onPoseUpdate }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const workerRef = useRef(null);
-  const cameraRef = useRef(null);
   const animationFrameId = useRef(null);
+  const streamRef = useRef(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -32,6 +29,7 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
     return () => {
       workerRef.current?.terminate();
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      stopWebcam();
     };
   }, []);
 
@@ -39,26 +37,51 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
     if (!isReady) return;
 
     if (videoFile) {
-        // Stop webcam if running
-        if (cameraRef.current) {
-            cameraRef.current.stop();
-            cameraRef.current = null;
-        }
-
+        stopWebcam();
         const video = videoRef.current;
+        video.srcObject = null;
         video.src = videoFile;
         video.crossOrigin = "anonymous";
         video.loop = true;
         video.muted = true;
 
         video.onloadeddata = () => {
-            video.play();
+            video.play().catch(e => console.error("Video play error:", e));
             processVideoFrame();
         };
     } else {
-        startCamera();
+        startWebcam();
     }
   }, [videoFile, isReady]);
+
+  const stopWebcam = () => {
+      if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+      }
+  };
+
+  const startWebcam = async () => {
+      if (!videoRef.current) return;
+
+      try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+              video: { width: 640, height: 480, facingMode: "user" }
+          });
+          streamRef.current = stream;
+
+          const video = videoRef.current;
+          video.src = "";
+          video.srcObject = stream;
+          video.muted = true;
+          video.onloadeddata = () => {
+              video.play().catch(e => console.error("Webcam play error:", e));
+              processVideoFrame();
+          };
+      } catch (err) {
+          console.error("Error accessing webcam: ", err);
+      }
+  };
 
   const processVideoFrame = async () => {
       if (videoRef.current && !videoRef.current.paused && !videoRef.current.ended) {
@@ -72,29 +95,17 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
       }
   };
 
-  const startCamera = () => {
-    if (videoRef.current && isReady && Camera && !videoFile) {
-      cameraRef.current = new Camera(videoRef.current, {
-        onFrame: async () => {
-          if (videoRef.current) {
-             try {
-                const imageBitmap = await createImageBitmap(videoRef.current);
-                workerRef.current.postMessage({ type: 'process', payload: imageBitmap }, [imageBitmap]);
-             } catch(e) { }
-          }
-        },
-        width: 640,
-        height: 480
-      });
-      cameraRef.current.start();
-    }
-  };
-
   const drawResults = (results) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the actual video frame first!
+    if (videoRef.current) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    }
 
     if (results.poseLandmarks) {
       // Draw futuristic skeleton overlay

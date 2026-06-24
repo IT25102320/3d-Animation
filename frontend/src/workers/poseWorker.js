@@ -26,7 +26,13 @@ self.onmessage = async (e) => {
     });
 
     pose.onResults((results) => {
-      self.postMessage({ type: 'results', payload: results });
+      // Create a serializable clone of the results to prevent DataCloneError
+      // MediaPipe passes an `image` object (GpuBuffer or HTML element) that throws errors.
+      const safeResults = {
+        poseLandmarks: results.poseLandmarks,
+        poseWorldLandmarks: results.poseWorldLandmarks
+      };
+      self.postMessage({ type: 'results', payload: safeResults });
     });
 
     self.postMessage({ type: 'initialized' });

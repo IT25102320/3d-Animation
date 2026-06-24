@@ -8,6 +8,8 @@ function App() {
   const [poseData, setPoseData] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
   const [modelStatus, setModelStatus] = useState("Default");
+  const [customModelUrl, setCustomModelUrl] = useState(null);
+  const [customModelExt, setCustomModelExt] = useState(null);
 
   const handleVideoUpload = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -20,8 +22,17 @@ function App() {
   const handleModelUpload = async (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setModelStatus("Processing...");
+      const extension = file.name.split('.').pop().toLowerCase();
 
+      setModelStatus("Loading Local...");
+
+      // Load model directly in the frontend for visualization
+      const localUrl = URL.createObjectURL(file);
+      setCustomModelExt(extension);
+      setCustomModelUrl(localUrl);
+
+      // Async backend processing (auto-rigging fallback if needed)
+      setModelStatus("Processing Backend...");
       const formData = new FormData();
       formData.append('file', file);
 
@@ -34,13 +45,14 @@ function App() {
         if (response.ok) {
           const data = await response.json();
           setModelStatus(data.fallback ? "Fallback Rigged" : "Rigged Successfully");
-          // In a real scenario we'd load the returned data.rigged_model URL into Scene3D here.
+          // If the backend returns a rigged URL, we would overwrite customModelUrl here
+          // setCustomModelUrl(data.rigged_model)
         } else {
           setModelStatus("Error");
         }
       } catch (err) {
         console.error("Backend unreachable", err);
-        setModelStatus("Backend Offline");
+        setModelStatus("Backend Offline (Displaying Raw)");
       }
     }
   };
@@ -81,7 +93,7 @@ function App() {
                 />
               </div>
               <div className="pt-2 border-t border-gray-700">
-                <label className="block text-xs text-gray-400 mb-2">Upload 3D Model (.glb, .obj)</label>
+                <label className="block text-xs text-gray-400 mb-2">Upload 3D Model (.glb, .obj, .fbx)</label>
                 <input
                   type="file"
                   accept=".glb,.gltf,.obj,.fbx"
@@ -131,8 +143,13 @@ function App() {
             <Box className="w-4 h-4" /> Workspace / Default Scene
           </div>
           <div className="flex gap-4">
-            <button className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]">
-              <Play className="w-4 h-4" /> Start Capture
+            <button
+              onClick={() => {
+                if (videoFile) setVideoFile(null); // Reset back to webcam
+              }}
+              className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
+            >
+              <Play className="w-4 h-4" /> Reset Webcam
             </button>
           </div>
         </motion.header>
@@ -164,7 +181,7 @@ function App() {
               <Box className="w-4 h-4" /> 3D Viewport
             </div>
 
-            <Scene3D poseData={poseData} />
+            <Scene3D poseData={poseData} customModelUrl={customModelUrl} customModelExt={customModelExt} />
           </motion.div>
         </div>
       </main>
