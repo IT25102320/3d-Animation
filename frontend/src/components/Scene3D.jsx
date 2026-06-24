@@ -66,7 +66,10 @@ function DynamicModel({ url, extension, poseData }) {
 function PlaceholderCharacter({ poseData }) {
   const leftArmRef = useRef();
   const rightArmRef = useRef();
+  const leftLegRef = useRef();
+  const rightLegRef = useRef();
   const spineRef = useRef();
+  const headRef = useRef();
 
   useFrame((state) => {
     // If we have live pose data, update the bones using IK mappings
@@ -74,7 +77,10 @@ function PlaceholderCharacter({ poseData }) {
         const bones = {
             leftArm: leftArmRef.current,
             rightArm: rightArmRef.current,
-            spine: spineRef.current
+            leftLeg: leftLegRef.current,
+            rightLeg: rightLegRef.current,
+            spine: spineRef.current,
+            head: headRef.current
         };
         mapMediaPipeToBones(poseData.poseLandmarks, bones);
     } else {
@@ -86,36 +92,59 @@ function PlaceholderCharacter({ poseData }) {
   });
 
   return (
-    <group position={[0, 1, 0]}>
+    <group position={[0, 1.5, 0]}>
       {/* Spine / Body Root */}
-      <group ref={spineRef} position={[0, -0.6, 0]}>
-          <mesh position={[0, 0.6, 0]}>
-            <boxGeometry args={[0.8, 1.2, 0.4]} />
+      <group ref={spineRef} position={[0, 0, 0]}>
+          <mesh position={[0, 0.4, 0]}>
+            <boxGeometry args={[0.7, 1.0, 0.3]} />
             <meshStandardMaterial color="#4f46e5" roughness={0.2} metalness={0.8} />
           </mesh>
+
           {/* Head attached to Spine */}
-          <mesh position={[0, 1.5, 0]}>
-            <sphereGeometry args={[0.3, 32, 32]} />
-            <meshStandardMaterial color="#3b82f6" emissive="#1e40af" emissiveIntensity={0.5} />
-          </mesh>
+          <group ref={headRef} position={[0, 1.1, 0]}>
+              <mesh position={[0, 0.2, 0]}>
+                <sphereGeometry args={[0.25, 32, 32]} />
+                <meshStandardMaterial color="#3b82f6" emissive="#1e40af" emissiveIntensity={0.5} />
+              </mesh>
+          </group>
       </group>
 
       {/* Left Arm (Pivot at shoulder) */}
-      <group position={[-0.5, 1.0, 0]}>
+      <group position={[-0.45, 0.8, 0]}>
           <group ref={leftArmRef}>
-              <mesh position={[0, -0.4, 0]}>
-                <cylinderGeometry args={[0.1, 0.1, 0.8]} />
+              <mesh position={[0, -0.35, 0]}>
+                <cylinderGeometry args={[0.08, 0.08, 0.7]} />
                 <meshStandardMaterial color="#6366f1" />
               </mesh>
           </group>
       </group>
 
       {/* Right Arm (Pivot at shoulder) */}
-      <group position={[0.5, 1.0, 0]}>
+      <group position={[0.45, 0.8, 0]}>
           <group ref={rightArmRef}>
-              <mesh position={[0, -0.4, 0]}>
-                <cylinderGeometry args={[0.1, 0.1, 0.8]} />
+              <mesh position={[0, -0.35, 0]}>
+                <cylinderGeometry args={[0.08, 0.08, 0.7]} />
                 <meshStandardMaterial color="#6366f1" />
+              </mesh>
+          </group>
+      </group>
+
+      {/* Left Leg (Pivot at hip) */}
+      <group position={[-0.2, -0.1, 0]}>
+          <group ref={leftLegRef}>
+              <mesh position={[0, -0.45, 0]}>
+                <cylinderGeometry args={[0.1, 0.1, 0.9]} />
+                <meshStandardMaterial color="#4338ca" />
+              </mesh>
+          </group>
+      </group>
+
+      {/* Right Leg (Pivot at hip) */}
+      <group position={[0.2, -0.1, 0]}>
+          <group ref={rightLegRef}>
+              <mesh position={[0, -0.45, 0]}>
+                <cylinderGeometry args={[0.1, 0.1, 0.9]} />
+                <meshStandardMaterial color="#4338ca" />
               </mesh>
           </group>
       </group>
@@ -126,7 +155,7 @@ function PlaceholderCharacter({ poseData }) {
 export function Scene3D({ poseData, customModelUrl, customModelExt }) {
   return (
     <div className="absolute inset-0 w-full h-full">
-      <Canvas camera={{ position: [0, 2, 5], fov: 50 }}>
+      <Canvas camera={{ position: [0, 2, 6], fov: 50 }}>
         <color attach="background" args={['#111827']} />
 
         {/* Improved Lighting for custom models */}

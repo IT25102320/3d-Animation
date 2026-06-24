@@ -1,5 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Video } from 'lucide-react';
+import { Video, Play } from 'lucide-react';
+
+// Hardcode connections since MediaPipe npm export is sometimes broken in Vite
+const POSE_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10],
+  [11, 12], [11, 13], [13, 15], [15, 17], [15, 19], [15, 21], [17, 19],
+  [12, 14], [14, 16], [16, 18], [16, 20], [16, 22], [18, 20],
+  [11, 23], [12, 24], [23, 24], [23, 25], [24, 26], [25, 27], [26, 28],
+  [27, 29], [28, 30], [29, 31], [30, 32], [27, 31], [28, 32]
+];
 
 export function VideoFeed({ videoFile, onPoseUpdate }) {
   const videoRef = useRef(null);
@@ -8,6 +17,7 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
   const animationFrameId = useRef(null);
   const streamRef = useRef(null);
   const [isReady, setIsReady] = useState(false);
+  const [isWebcamActive, setIsWebcamActive] = useState(false);
 
   useEffect(() => {
     workerRef.current = new Worker(new URL('../workers/poseWorker.js', import.meta.url), { type: 'module' });
@@ -37,6 +47,7 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
     if (!isReady) return;
 
     if (videoFile) {
+        setIsWebcamActive(false);
         stopWebcam();
         const video = videoRef.current;
         video.srcObject = null;
@@ -50,7 +61,19 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
             processVideoFrame();
         };
     } else {
-        startWebcam();
+       // Do not auto-start webcam. Wait for button click.
+       stopWebcam();
+       setIsWebcamActive(false);
+
+       if (videoRef.current) {
+            videoRef.current.src = "";
+       }
+
+       // Clear canvas
+       if (canvasRef.current) {
+           const ctx = canvasRef.current.getContext('2d');
+           ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+       }
     }
   }, [videoFile, isReady]);
 
@@ -69,6 +92,7 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
               video: { width: 640, height: 480, facingMode: "user" }
           });
           streamRef.current = stream;
+          setIsWebcamActive(true);
 
           const video = videoRef.current;
           video.src = "";
@@ -80,6 +104,7 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
           };
       } catch (err) {
           console.error("Error accessing webcam: ", err);
+          alert("Could not access webcam. Please check permissions.");
       }
   };
 
@@ -102,40 +127,46 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw the actual video frame first!
-    if (videoRef.current) {
+    if (videoRef.current && (isWebcamActive || videoFile)) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     }
 
     if (results.poseLandmarks) {
-      // Draw futuristic skeleton overlay
+      // Draw full futuristic skeleton overlay
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = '#00ffcc'; // Neon Cyan
       ctx.lineWidth = 3;
       ctx.shadowBlur = 10;
       ctx.shadowColor = '#00ffcc';
 
-      const rightShoulder = results.poseLandmarks[12];
-      const leftShoulder = results.poseLandmarks[11];
+      // Draw connections
+      for (const connection of POSE_CONNECTIONS) {
+          const start = results.poseLandmarks[connection[0]];
+          const end = results.poseLandmarks[connection[1]];
 
-      if (rightShoulder && leftShoulder) {
-        ctx.beginPath();
-        ctx.moveTo(leftShoulder.x * canvas.width, leftShoulder.y * canvas.height);
-        ctx.lineTo(rightShoulder.x * canvas.width, rightShoulder.y * canvas.height);
-        ctx.stroke();
+          if (start && end && start.visibility > 0.5 && end.visibility > 0.5) {
+              ctx.beginPath();
+              ctx.moveTo(start.x * canvas.width, start.y * canvas.height);
+              ctx.lineTo(end.x * canvas.width, end.y * canvas.height);
+              ctx.stroke();
+          }
       }
 
+      // Draw Nodes
       ctx.fillStyle = '#ff0055'; // Neon Pink
       for (const landmark of results.poseLandmarks) {
-        ctx.beginPath();
-        ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 4, 0, 2 * Math.PI);
-        ctx.fill();
+          if (landmark.visibility > 0.5) {
+            ctx.beginPath();
+            ctx.arc(landmark.x * canvas.width, landmark.y * canvas.height, 4, 0, 2 * Math.PI);
+            ctx.fill();
+          }
       }
     }
   };
 
   return (
-    <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center">
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover hidden"
@@ -155,6 +186,17 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
                 <span className="text-sm font-semibold text-gray-400">Initializing Tracking Engine...</span>
             </div>
         </div>
+      )}
+
+      {isReady && !videoFile && !isWebcamActive && (
+          <div className="absolute inset-0 flex items-center justify-center z-30 bg-gray-900/80 backdrop-blur-sm">
+               <button
+                  onClick={startWebcam}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]"
+               >
+                  <Play className="w-5 h-5" /> Start Webcam
+               </button>
+          </div>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 // Workaround for MediaPipe commonjs export issues in Vite Workers
 import * as MP from '@mediapipe/pose';
-const Pose = MP.Pose || MP.default?.Pose || window.Pose;
+const Pose = MP.Pose || MP.default?.Pose || self.Pose || window?.Pose;
 
 let pose = null;
 
