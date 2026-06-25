@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, Grid, Bounds } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
@@ -7,9 +7,41 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { mapMediaPipeToBones } from '../utils/mathUtils';
 
+function findBoneByKeywords(object, keywords) {
+    let found = null;
+    object.traverse((child) => {
+        if (child.isBone && !found) {
+            const name = child.name.toLowerCase();
+            if (keywords.some(keyword => name.includes(keyword))) {
+                found = child;
+            }
+        }
+    });
+    return found;
+}
+
+function extractBones(model) {
+    // Attempt to auto-map standard bone names (e.g., Mixamo naming conventions)
+    return {
+        leftUpperArm: findBoneByKeywords(model, ['leftarm', 'left_arm', 'leftshoulder', 'l_upperarm']),
+        rightUpperArm: findBoneByKeywords(model, ['rightarm', 'right_arm', 'rightshoulder', 'r_upperarm']),
+        leftForearm: findBoneByKeywords(model, ['leftforearm', 'left_forearm', 'l_forearm', 'leftelbow']),
+        rightForearm: findBoneByKeywords(model, ['rightforearm', 'right_forearm', 'r_forearm', 'rightelbow']),
+        leftHand: findBoneByKeywords(model, ['lefthand', 'left_hand', 'l_hand', 'leftwrist']),
+        rightHand: findBoneByKeywords(model, ['righthand', 'right_hand', 'r_hand', 'rightwrist']),
+        leftThigh: findBoneByKeywords(model, ['leftupleg', 'left_upleg', 'l_thigh', 'lefthip']),
+        rightThigh: findBoneByKeywords(model, ['rightupleg', 'right_upleg', 'r_thigh', 'righthip']),
+        leftShin: findBoneByKeywords(model, ['leftleg', 'left_leg', 'l_calf', 'leftknee']),
+        rightShin: findBoneByKeywords(model, ['rightleg', 'right_leg', 'r_calf', 'rightknee']),
+        head: findBoneByKeywords(model, ['head', 'neck']),
+        spine: findBoneByKeywords(model, ['spine', 'hips', 'pelvis'])
+    };
+}
+
 function DynamicModel({ url, extension, poseData }) {
     const groupRef = useRef();
     const [model, setModel] = useState(null);
+    const [bones, setBones] = useState(null);
 
     useEffect(() => {
         if (!url) return;
@@ -27,10 +59,8 @@ function DynamicModel({ url, extension, poseData }) {
         }
 
         loader.load(url, (loadedObj) => {
-            // GLTFLoader returns an object with a .scene property. FBX/OBJ return the Object3D directly.
             const sceneObj = loadedObj.scene || loadedObj;
 
-            // Basic material fix for OBJ which might lack materials
             if (extension === 'obj') {
                 sceneObj.traverse((child) => {
                     if (child.isMesh) {
@@ -39,6 +69,9 @@ function DynamicModel({ url, extension, poseData }) {
                 });
             }
 
+            // Extract bones dynamically
+            const extractedBones = extractBones(sceneObj);
+            setBones(extractedBones);
             setModel(sceneObj);
         }, undefined, (error) => {
             console.error("Error loading model:", error);
@@ -47,10 +80,8 @@ function DynamicModel({ url, extension, poseData }) {
     }, [url, extension]);
 
     useFrame(() => {
-        // Here we would apply IK logic to `model`'s bones if it was rigged.
-        // For a raw model, it just stays static inside the <Bounds> framing.
-        if (model && poseData) {
-           // mapMediaPipeToBones(poseData.poseLandmarks, model.skeleton.bones)
+        if (model && bones && poseData && poseData.poseLandmarks) {
+           mapMediaPipeToBones(poseData.poseLandmarks, bones);
         }
     });
 
@@ -75,10 +106,10 @@ function PlaceholderCharacter({ poseData }) {
     // If we have live pose data, update the bones using IK mappings
     if (poseData && poseData.poseLandmarks) {
         const bones = {
-            leftArm: leftArmRef.current,
-            rightArm: rightArmRef.current,
-            leftLeg: leftLegRef.current,
-            rightLeg: rightLegRef.current,
+            leftUpperArm: leftArmRef.current,
+            rightUpperArm: rightArmRef.current,
+            leftThigh: leftLegRef.current,
+            rightThigh: rightLegRef.current,
             spine: spineRef.current,
             head: headRef.current
         };

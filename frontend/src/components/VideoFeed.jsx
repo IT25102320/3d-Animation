@@ -135,7 +135,7 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
     if (results.poseLandmarks) {
       // Draw full futuristic skeleton overlay
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = '#00ffcc'; // Neon Cyan
+      ctx.strokeStyle = '#00ffcc'; // Neon Cyan lines
       ctx.lineWidth = 3;
       ctx.shadowBlur = 10;
       ctx.shadowColor = '#00ffcc';
@@ -153,8 +153,9 @@ export function VideoFeed({ videoFile, onPoseUpdate }) {
           }
       }
 
-      // Draw Nodes
-      ctx.fillStyle = '#ff0055'; // Neon Pink
+      // Draw Nodes (Green dots as requested)
+      ctx.fillStyle = '#00ff00';
+      ctx.shadowColor = '#00ff00';
       for (const landmark of results.poseLandmarks) {
           if (landmark.visibility > 0.5) {
             ctx.beginPath();

@@ -20,34 +20,40 @@ export function calculateBoneRotation(landmarkA, landmarkB, defaultDirVec = new 
 export function mapMediaPipeToBones(landmarks, bones) {
     if (!landmarks || !bones) return;
 
-    // Use 0.15 slerp factor for smooth bone rotation
+    // Use 0.15 slerp factor for smooth bone rotation as requested
     const slerpFactor = 0.15;
 
-    // Left Arm (Shoulder 11 to Elbow 13)
-    if (bones.leftArm && landmarks[11] && landmarks[13] && landmarks[11].visibility > 0.5) {
-        const targetQ = calculateBoneRotation(landmarks[11], landmarks[13]);
-        bones.leftArm.quaternion.slerp(targetQ, slerpFactor);
-    }
+    // Helper to safely apply rotation
+    const applyIK = (bone, landmarkStartIdx, landmarkEndIdx, defaultDir = new THREE.Vector3(0, -1, 0)) => {
+        if (bone && landmarks[landmarkStartIdx] && landmarks[landmarkEndIdx]) {
+            if (landmarks[landmarkStartIdx].visibility > 0.5 && landmarks[landmarkEndIdx].visibility > 0.5) {
+               const targetQ = calculateBoneRotation(landmarks[landmarkStartIdx], landmarks[landmarkEndIdx], defaultDir);
+               bone.quaternion.slerp(targetQ, slerpFactor);
+            }
+        }
+    };
 
-    // Right Arm (Shoulder 12 to Elbow 14)
-    if (bones.rightArm && landmarks[12] && landmarks[14] && landmarks[12].visibility > 0.5) {
-        const targetQ = calculateBoneRotation(landmarks[12], landmarks[14]);
-        bones.rightArm.quaternion.slerp(targetQ, slerpFactor);
-    }
+    // Upper Arms (Shoulder 11/12 to Elbow 13/14)
+    applyIK(bones.leftUpperArm, 11, 13);
+    applyIK(bones.rightUpperArm, 12, 14);
 
-    // Left Leg (Hip 23 to Knee 25)
-    if (bones.leftLeg && landmarks[23] && landmarks[25] && landmarks[23].visibility > 0.5) {
-        const targetQ = calculateBoneRotation(landmarks[23], landmarks[25]);
-        bones.leftLeg.quaternion.slerp(targetQ, slerpFactor);
-    }
+    // Forearms (Elbow 13/14 to Wrist 15/16)
+    applyIK(bones.leftForearm, 13, 15);
+    applyIK(bones.rightForearm, 14, 16);
 
-    // Right Leg (Hip 24 to Knee 26)
-    if (bones.rightLeg && landmarks[24] && landmarks[26] && landmarks[24].visibility > 0.5) {
-        const targetQ = calculateBoneRotation(landmarks[24], landmarks[26]);
-        bones.rightLeg.quaternion.slerp(targetQ, slerpFactor);
-    }
+    // Hands (Wrist 15/16 to Index Finger 19/20)
+    applyIK(bones.leftHand, 15, 19);
+    applyIK(bones.rightHand, 16, 20);
 
-    // Head (Nose 0 relative to Shoulders midpoint)
+    // Thighs (Hip 23/24 to Knee 25/26)
+    applyIK(bones.leftThigh, 23, 25);
+    applyIK(bones.rightThigh, 24, 26);
+
+    // Shins (Knee 25/26 to Ankle 27/28)
+    applyIK(bones.leftShin, 25, 27);
+    applyIK(bones.rightShin, 26, 28);
+
+    // Head (Shoulders midpoint to Nose 0)
     if (bones.head && landmarks[0] && landmarks[11] && landmarks[12]) {
         const shoulderMidX = (landmarks[11].x + landmarks[12].x) / 2;
         const shoulderMidY = (landmarks[11].y + landmarks[12].y) / 2;
